@@ -11,11 +11,10 @@ namespace OpenTKTest
 {
     public class Chunk
     {
-        private static readonly float BLOCK_RENDER_SIZE = 0.5f;
-
-        public static readonly int CHUNK_SIZE_1D = 32;
+        public static readonly float BLOCK_RENDER_SIZE = 0.5f;
+        public static readonly int CHUNK_SIZE_1D = 16;
         public static readonly int CHUNK_SIZE_3D;
-        BlockType[, ,] blocks = new BlockType[CHUNK_SIZE_1D, CHUNK_SIZE_1D, CHUNK_SIZE_1D];
+        BlockType[,,] blocks = new BlockType[CHUNK_SIZE_1D, CHUNK_SIZE_1D, CHUNK_SIZE_1D];
 
         static Chunk()
         {
@@ -25,6 +24,11 @@ namespace OpenTKTest
         public Chunk()
         {
         }
+        
+        short[] indices;
+
+        int indicesHandle = 0;
+        int verticesHandle = 0;
 
         List<Vector3> vertexData = new List<Vector3>();
         public void Generate()
@@ -32,25 +36,24 @@ namespace OpenTKTest
             GL.GenBuffers(1, out verticesHandle);
             GL.BindBuffer(BufferTarget.ArrayBuffer, verticesHandle);
 
-            for (var x = 0; x < CHUNK_SIZE_1D; x++)
-                for (var y = 0; y < CHUNK_SIZE_1D; y += 5)
-                    for (var z = 0; z < CHUNK_SIZE_1D; z++)
+            for (int x = 0; x < CHUNK_SIZE_1D; x++)
+                for (int y = 0; y < CHUNK_SIZE_1D; y++)
+                    for (int z = 0; z < CHUNK_SIZE_1D; z++)
                         blocks[x, y, z] = BlockType.STONE;
 
-            for (var x = 0; x < CHUNK_SIZE_1D; x++)
+            for (int x = 0; x < CHUNK_SIZE_1D; x++)
             {
-                for (var y = 0; y < CHUNK_SIZE_1D; y++)
+                for (int y = 0; y < CHUNK_SIZE_1D; y++)
                 {
-                    for (var z = 0; z < CHUNK_SIZE_1D; z++)
+                    for (int z = 0; z < CHUNK_SIZE_1D; z++)
                     {
-                        var blockType = blocks[x, y, z];
+                        BlockType blockType = blocks[x, y, z];
                         if (blockType == BlockType.AIR) continue;
                         if (!blockType.IsSolid())
                         {
                             Console.WriteLine(String.Format("Non-solid block at ({0}, {1}, {2}). Skipping rendering.", x, y, z));
                             continue;
                         }
-
                         bool posX, negX, posY, negY, posZ, negZ; //decide whether or not to render faces in those directions
 
                         if (x == 0)
@@ -109,7 +112,7 @@ namespace OpenTKTest
             }
 
             GL.BufferData(BufferTarget.ArrayBuffer,
-                (IntPtr)(vertexData.Count * Vector3.SizeInBytes),
+                (IntPtr)((vertexData.Count) * Vector3.SizeInBytes),
                 vertexData.ToArray(), BufferUsageHint.StaticDraw);
 
             GL.GenBuffers(1, out indicesHandle);
@@ -126,15 +129,8 @@ namespace OpenTKTest
                 indices[i + 5] = (short)j;
             }
             GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(indices.Length * sizeof(short)), indices, BufferUsageHint.StaticDraw);
-            IsReady = true;
         }
 
-        public bool IsReady = false;
-
-        short[] indices;
-
-        int indicesHandle;
-        int verticesHandle;
         private void AddVoxel(BlockType type, int x, int y, int z, bool posX, bool negX, bool posY, bool negY, bool posZ, bool negZ)
         {
             Vector3 XYZ = new Vector3(x + BLOCK_RENDER_SIZE, y + BLOCK_RENDER_SIZE, z + BLOCK_RENDER_SIZE);
@@ -199,7 +195,7 @@ namespace OpenTKTest
             GL.EnableClientState(ArrayCap.VertexArray);
             GL.BindBuffer(BufferTarget.ArrayBuffer, verticesHandle);
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, indicesHandle);
-            
+
             GL.VertexPointer(3, VertexPointerType.Float, BlittableValueType.StrideOf(vertexData.ToArray()), IntPtr.Zero);
             GL.DrawElements(BeginMode.Triangles, indices.Length, DrawElementsType.UnsignedShort, IntPtr.Zero);
         }

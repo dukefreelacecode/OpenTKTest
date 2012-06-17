@@ -6,38 +6,42 @@ using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Audio;
 using OpenTK.Audio.OpenAL;
-using OpenTK.Input;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using OpenTK.Input;
 
 namespace OpenTKTest
 {
     class Game : GameWindow
     {
+
+
         /// <summary>Creates a 800x600 window with the specified title.</summary>
         public Game()
-            : base(800, 600, OpenTK.Graphics.GraphicsMode.Default, "OpenTK Quick Start Sample")
+            : base(1280, 1024, OpenTK.Graphics.GraphicsMode.Default, "Cole Erickson - Test", GameWindowFlags.Fullscreen)
         {
             VSync = VSyncMode.On;
         }
-        Chunk chunk;
+        ChunkManager cm;
         /// <summary>Load resources here.</summary>
         /// <param name="e">Not used.</param>
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
 
-            chunk = new Chunk();
-            System.Diagnostics.Stopwatch s = new System.Diagnostics.Stopwatch();
-            s.Start();
-            chunk.Generate();
-            s.Stop();
-            Console.WriteLine(s.ElapsedMilliseconds);
+            //this.Location = new Point(200,200);
 
-            //Console.WriteLine(Marshal.SizeOf(new Vector3(4, 5, 6.001f)));
+            CursorVisible = false;
+            OpenTK.Input.Mouse.SetPosition(this.Location.X + Width / 2, this.Location.Y + Height / 2);
             GL.ClearColor(0.1f, 0.2f, 0.5f, 0.0f);
+            GL.FrontFace(FrontFaceDirection.Ccw);
             GL.Enable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
+            GL.Enable(EnableCap.CullFace);
+
+            this.WindowBorder = OpenTK.WindowBorder.Hidden;
+
+            cm = new ChunkManager();
         }
 
         /// <summary>
@@ -52,12 +56,12 @@ namespace OpenTKTest
 
             GL.Viewport(ClientRectangle.X, ClientRectangle.Y, ClientRectangle.Width, ClientRectangle.Height);
 
-            Matrix4 projection = Matrix4.CreatePerspectiveFieldOfView((float)Math.PI / 4, Width / (float)Height, 1.0f, 100.0f);
+            Matrix4 projection = Matrix4.CreatePerspectiveFieldOfView((float)Math.PI / 4, Width / (float)Height, 1.0f, 4000.0f);
             GL.MatrixMode(MatrixMode.Projection);
             GL.LoadMatrix(ref projection);
         }
 
-        float moveSpeed = 1f;
+        float moveSpeed = 5f;
         /// <summary>
         /// Called when it is time to setup the next frame. Add you game logic here.
         /// </summary>
@@ -69,21 +73,70 @@ namespace OpenTKTest
             if (Keyboard[Key.Escape])
                 Exit();
 
+            Console.WriteLine(yaw);
+
+            Vector3 move = Vector3.Zero;
             if (Keyboard[Key.W])
-                cameraPosition.Z -= moveSpeed;
+            {
+                move.Z -= (float)Math.Cos(yaw);
+                move.X -= (float)Math.Sin(yaw);
+            }
             if (Keyboard[Key.S])
-                cameraPosition.Z += moveSpeed;
+            {
+                move.Z += (float)Math.Cos(yaw);
+                move.X += (float)Math.Sin(yaw);
+            }
             if (Keyboard[Key.A])
-                cameraPosition.X -= moveSpeed;
+            {
+                move.Z += (float)Math.Sin(yaw);
+                move.X -= (float)Math.Cos(yaw);
+            }
             if (Keyboard[Key.D])
-                cameraPosition.X += moveSpeed;
+            {
+                move.X += (float)Math.Cos(yaw);
+                move.Z -= (float)Math.Sin(yaw);
+            }
             if (Keyboard[Key.Space])
-                cameraPosition.Y += moveSpeed;
+                move.Y++;
             if (Keyboard[Key.LShift])
-                cameraPosition.Y -= moveSpeed;
+                move.Y--;
+            if (move != Vector3.Zero)
+                move.Normalize();
+            playerPos += move * moveSpeed;
+
+            yaw -= (Mouse.X - (Width / 2)) * 0.001f;
+            pitch -= (Mouse.Y - (Height / 2)) * 0.001f;
+
+            cameraPos = playerPos;
+
+            if (yaw > MathHelper.Pi) yaw -= MathHelper.TwoPi; //MAGIC NUMBARSSSSS
+            else if (yaw < -MathHelper.Pi) yaw += MathHelper.TwoPi;
+
+            if (pitch > MathHelper.PiOver2 - 0.001f) pitch = MathHelper.PiOver2 - 0.001f;
+            else if (pitch < -MathHelper.PiOver2 + 0.001f) pitch = -MathHelper.PiOver2 + 0.001f;
+
+            Matrix4 rotationMatrix = Matrix4.CreateRotationX(pitch) * Matrix4.CreateRotationY(yaw) ;
+            Vector3 transformedReference = Vector3.Transform(CAMERA_REFERENCE, rotationMatrix);
+            Vector3 cameraLookAt = cameraPos + transformedReference;
+
+            view = Matrix4.LookAt(cameraPos, cameraLookAt, Vector3.UnitY);
+
+
+            //Console.WriteLine(cameraPos - transformedReference);
+
+            OpenTK.Input.Mouse.SetPosition(this.Location.X + Width / 2, this.Location.Y + Height / 2);
         }
 
-        Vector3 cameraPosition = Vector3.UnitZ * 50;
+        readonly Vector3 CAMERA_REFERENCE = new Vector3(0, 0, -1);
+
+        Vector3 target = Vector3.Zero;
+        Matrix4 view;
+        float yaw;
+        float pitch;
+        Vector3 playerPos = Vector3.UnitZ * 50;
+        Vector3 cameraPos = Vector3.Zero;
+
+        readonly Vector3 HEAD_OFFSET = new Vector3(0, 3, 0);
 
         /// <summary>
         /// Called when it is time to render the next frame. Add your rendering code here.
@@ -94,15 +147,13 @@ namespace OpenTKTest
             base.OnRenderFrame(e);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            Matrix4 modelview = Matrix4.LookAt(cameraPosition, cameraPosition - Vector3.UnitZ, Vector3.UnitY);
             GL.MatrixMode(MatrixMode.Modelview);
-            GL.LoadMatrix(ref modelview);
+            GL.LoadMatrix(ref view);
 
-            if (chunk.IsReady)
-            {
-                GL.Color4(0.6f, 0.8f, 0.2f, 0.0f);
-                chunk.Draw();
-            }
+            GL.CullFace(CullFaceMode.Front);
+            GL.PolygonMode(MaterialFace.Back, PolygonMode.Point);
+            GL.Color4(0.6f, 0.8f, 0.2f, 0.0f);
+            cm.DrawChunks();
 
             SwapBuffers();
         }
@@ -118,7 +169,7 @@ namespace OpenTKTest
             // RenderFrame events (as fast as the computer can handle).
             using (Game game = new Game())
             {
-                game.Run(30.0);
+                game.Run(60.0);
             }
         }
     }
