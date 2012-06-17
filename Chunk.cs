@@ -11,7 +11,7 @@ namespace OpenTKTest
 {
     public class Chunk
     {
-        private static readonly int BLOCK_RENDER_SIZE = 1;
+        private static readonly float BLOCK_RENDER_SIZE = 0.5f;
 
         public static readonly int CHUNK_SIZE_1D = 32;
         public static readonly int CHUNK_SIZE_3D;
@@ -29,11 +29,11 @@ namespace OpenTKTest
         List<Vector3> vertexData = new List<Vector3>();
         public void Generate()
         {
-            GL.GenBuffers(2, VBOid);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, VBOid[0]);
+            GL.GenBuffers(1, out verticesHandle);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, verticesHandle);
 
             for (var x = 0; x < CHUNK_SIZE_1D; x++)
-                for (var y = 0; y < CHUNK_SIZE_1D; y++)
+                for (var y = 0; y < CHUNK_SIZE_1D; y += 5)
                     for (var z = 0; z < CHUNK_SIZE_1D; z++)
                         blocks[x, y, z] = BlockType.STONE;
 
@@ -108,10 +108,33 @@ namespace OpenTKTest
                 }
             }
 
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(vertexData.Count * 12), vertexData.ToArray(), BufferUsageHint.StaticDraw);            
+            GL.BufferData(BufferTarget.ArrayBuffer,
+                (IntPtr)(vertexData.Count * Vector3.SizeInBytes),
+                vertexData.ToArray(), BufferUsageHint.StaticDraw);
+
+            GL.GenBuffers(1, out indicesHandle);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, indicesHandle);
+            indices = new short[(vertexData.Count / 4) * 6];
+            for (uint i = 0, j = 0; i < indices.Length; i += 6, j += 4)
+            {
+                indices[i]     = (short)j;
+                indices[i + 1] = (short)(j + 1);
+                indices[i + 2] = (short)(j + 2);
+
+                indices[i + 3] = (short)(j + 2);
+                indices[i + 4] = (short)(j + 3);
+                indices[i + 5] = (short)j;
+            }
+            GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(indices.Length * sizeof(short)), indices, BufferUsageHint.StaticDraw);
+            IsReady = true;
         }
 
-        uint[] VBOid = new uint[2];
+        public bool IsReady = false;
+
+        short[] indices;
+
+        int indicesHandle;
+        int verticesHandle;
         private void AddVoxel(BlockType type, int x, int y, int z, bool posX, bool negX, bool posY, bool negY, bool posZ, bool negZ)
         {
             Vector3 XYZ = new Vector3(x + BLOCK_RENDER_SIZE, y + BLOCK_RENDER_SIZE, z + BLOCK_RENDER_SIZE);
@@ -122,21 +145,15 @@ namespace OpenTKTest
             Vector3 xyZ = new Vector3(x - BLOCK_RENDER_SIZE, y - BLOCK_RENDER_SIZE, z + BLOCK_RENDER_SIZE);
             Vector3 Xyz = new Vector3(x + BLOCK_RENDER_SIZE, y - BLOCK_RENDER_SIZE, z - BLOCK_RENDER_SIZE);
             Vector3 xYz = new Vector3(x - BLOCK_RENDER_SIZE, y + BLOCK_RENDER_SIZE, z - BLOCK_RENDER_SIZE);
-
-
-            //123341
-
-            //all clockwise when viewed outside cube
+            
+            //123 341
+            //012 230
             if (posX)
             {
-                //TOP LEFT
                 vertexData.Add(XYZ);
                 vertexData.Add(XYz);
                 vertexData.Add(Xyz);
-                //TOP RIGHT
-                vertexData.Add(Xyz);
                 vertexData.Add(XyZ);
-                vertexData.Add(XYZ);
             }
             if (negX)
             {
@@ -144,17 +161,6 @@ namespace OpenTKTest
                 vertexData.Add(xYz);
                 vertexData.Add(xYZ);
                 vertexData.Add(xyZ);
-
-                ////1, 2, 3, 3, 4, 1
-
-
-                //vertexData.Add(xyz);
-                //vertexData.Add(xYz);
-                //vertexData.Add(xYZ);
-
-                //vertexData.Add(xYZ);
-                //vertexData.Add(xyZ);
-                //vertexData.Add(xyz);
             }
 
             if (posY)
@@ -162,20 +168,14 @@ namespace OpenTKTest
                 vertexData.Add(xYz);
                 vertexData.Add(XYz);
                 vertexData.Add(XYZ);
-
-                vertexData.Add(XYZ);
                 vertexData.Add(xYZ);
-                vertexData.Add(xYz);
             }
             if (negY)
             {
                 vertexData.Add(XyZ);
                 vertexData.Add(Xyz);
                 vertexData.Add(xyz);
-
-                vertexData.Add(xyz);
                 vertexData.Add(xyZ);
-                vertexData.Add(XyZ);
             }
 
             if (posZ)
@@ -183,26 +183,25 @@ namespace OpenTKTest
                 vertexData.Add(XyZ);
                 vertexData.Add(xyZ);
                 vertexData.Add(xYZ);
-
-                vertexData.Add(xYZ);
                 vertexData.Add(XYZ);
-                vertexData.Add(XyZ);
             }
             if (negZ)
             {
                 vertexData.Add(xYz);
                 vertexData.Add(xyz);
                 vertexData.Add(Xyz);
-
-                vertexData.Add(Xyz);
                 vertexData.Add(XYz);
-                vertexData.Add(xYz);
             }
         }
 
         public void Draw()
         {
-            GL.DrawArrays(BeginMode.Triangles, 0, 1);
+            GL.EnableClientState(ArrayCap.VertexArray);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, verticesHandle);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, indicesHandle);
+            
+            GL.VertexPointer(3, VertexPointerType.Float, BlittableValueType.StrideOf(vertexData.ToArray()), IntPtr.Zero);
+            GL.DrawElements(BeginMode.Triangles, indices.Length, DrawElementsType.UnsignedShort, IntPtr.Zero);
         }
     }
 }

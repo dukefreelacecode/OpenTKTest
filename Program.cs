@@ -37,8 +37,7 @@ namespace OpenTKTest
             //Console.WriteLine(Marshal.SizeOf(new Vector3(4, 5, 6.001f)));
             GL.ClearColor(0.1f, 0.2f, 0.5f, 0.0f);
             GL.Enable(EnableCap.DepthTest);
-            GL.EnableClientState(ArrayCap.VertexArray);
-            GL.EnableClientState(ArrayCap.NormalArray);
+            GL.Enable(EnableCap.Blend);
         }
 
         /// <summary>
@@ -53,11 +52,12 @@ namespace OpenTKTest
 
             GL.Viewport(ClientRectangle.X, ClientRectangle.Y, ClientRectangle.Width, ClientRectangle.Height);
 
-            Matrix4 projection = Matrix4.CreatePerspectiveFieldOfView((float)Math.PI / 4, Width / (float)Height, 1.0f, 64.0f);
+            Matrix4 projection = Matrix4.CreatePerspectiveFieldOfView((float)Math.PI / 4, Width / (float)Height, 1.0f, 100.0f);
             GL.MatrixMode(MatrixMode.Projection);
             GL.LoadMatrix(ref projection);
         }
 
+        float moveSpeed = 1f;
         /// <summary>
         /// Called when it is time to setup the next frame. Add you game logic here.
         /// </summary>
@@ -68,7 +68,22 @@ namespace OpenTKTest
 
             if (Keyboard[Key.Escape])
                 Exit();
+
+            if (Keyboard[Key.W])
+                cameraPosition.Z -= moveSpeed;
+            if (Keyboard[Key.S])
+                cameraPosition.Z += moveSpeed;
+            if (Keyboard[Key.A])
+                cameraPosition.X -= moveSpeed;
+            if (Keyboard[Key.D])
+                cameraPosition.X += moveSpeed;
+            if (Keyboard[Key.Space])
+                cameraPosition.Y += moveSpeed;
+            if (Keyboard[Key.LShift])
+                cameraPosition.Y -= moveSpeed;
         }
+
+        Vector3 cameraPosition = Vector3.UnitZ * 50;
 
         /// <summary>
         /// Called when it is time to render the next frame. Add your rendering code here.
@@ -77,23 +92,17 @@ namespace OpenTKTest
         protected override void OnRenderFrame(FrameEventArgs e)
         {
             base.OnRenderFrame(e);
-
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            Matrix4 modelview = Matrix4.LookAt(Vector3.Zero, Vector3.UnitZ, Vector3.UnitY);
+            Matrix4 modelview = Matrix4.LookAt(cameraPosition, cameraPosition - Vector3.UnitZ, Vector3.UnitY);
             GL.MatrixMode(MatrixMode.Modelview);
             GL.LoadMatrix(ref modelview);
 
-
-            chunk.Draw();
-            /*GL.Begin(BeginMode.Triangles);
-            
-            GL.Color3(1.0f, 1.0f, 0.0f);
-            GL.Vertex3(-1.0f, -1.0f, 4.0f);
-            GL.Vertex3(1.0f, -1.0f, 4.0f);
-            GL.Vertex3(0.0f, 1.0f, 4.0f);
-
-            GL.End();*/
+            if (chunk.IsReady)
+            {
+                GL.Color4(0.6f, 0.8f, 0.2f, 0.0f);
+                chunk.Draw();
+            }
 
             SwapBuffers();
         }
