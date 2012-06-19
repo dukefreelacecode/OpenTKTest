@@ -14,15 +14,28 @@ namespace OpenTKTest
         public static readonly float BLOCK_RENDER_SIZE = 1f; // do not alter (unless you like fun)
         public static readonly int CHUNK_SIZE_1D = 16;
         public static readonly int CHUNK_SIZE_3D;
-        BlockType[,,] blocks = new BlockType[CHUNK_SIZE_1D, CHUNK_SIZE_1D, CHUNK_SIZE_1D];
+        BlockType[, ,] blocks = new BlockType[CHUNK_SIZE_1D, CHUNK_SIZE_1D, CHUNK_SIZE_1D];
 
         static Chunk()
         {
             CHUNK_SIZE_3D = (int)Math.Pow(CHUNK_SIZE_1D, 3);
         }
 
-        public void GenerateTerrain()
+        public void GenerateTerrain(int style)
         {
+            switch (style)
+            {
+                case 1:
+                    blocks[0, 0, 0] = BlockType.Stone;
+                    break;
+                case 0:
+                default:
+                    for (int x = 0; x < CHUNK_SIZE_1D; x++)
+                        for (int y = 0; y < CHUNK_SIZE_1D; y++)
+                            for (int z = 0; z < CHUNK_SIZE_1D; z++)
+                                blocks[x, y, z] = BlockType.Stone;
+                    break;
+            }
         }
 
         int indicesHandle,
@@ -30,24 +43,12 @@ namespace OpenTKTest
 
         short[] indices;
         List<Vector3> vertices;
-        public void GenerateBuffers(bool weird)
+        public void GenerateBuffers()
         {
-            Console.WriteLine("generating");
             vertices = new List<Vector3>();
             GL.GenBuffers(1, out verticesHandle);
             GL.BindBuffer(BufferTarget.ArrayBuffer, verticesHandle);
 
-            if (weird)
-            {
-                blocks[0, 0, 0] = BlockType.Stone;
-            }
-            else
-            {
-                for (int x = 0; x < CHUNK_SIZE_1D; x++)
-                    for (int y = 0; y < CHUNK_SIZE_1D; y++)
-                        for (int z = 0; z < CHUNK_SIZE_1D; z++)
-                            blocks[x, y, z] = BlockType.Stone;
-            }
             for (int x = 0; x < CHUNK_SIZE_1D; x++)
             {
                 for (int y = 0; y < CHUNK_SIZE_1D; y++)
@@ -141,13 +142,13 @@ namespace OpenTKTest
         private void AddVoxel(BlockType type, int x, int y, int z, bool posX, bool negX, bool posY, bool negY, bool posZ, bool negZ)
         {
             Vector3 XYZ = new Vector3(x + BLOCK_RENDER_SIZE, y + BLOCK_RENDER_SIZE, z + BLOCK_RENDER_SIZE);
-            Vector3 xyz = new Vector3(x , y , z );
-            Vector3 xYZ = new Vector3(x , y + BLOCK_RENDER_SIZE, z + BLOCK_RENDER_SIZE);
-            Vector3 XyZ = new Vector3(x + BLOCK_RENDER_SIZE, y , z + BLOCK_RENDER_SIZE);
-            Vector3 XYz = new Vector3(x + BLOCK_RENDER_SIZE, y + BLOCK_RENDER_SIZE, z );
-            Vector3 xyZ = new Vector3(x , y , z + BLOCK_RENDER_SIZE);
-            Vector3 Xyz = new Vector3(x + BLOCK_RENDER_SIZE, y , z );
-            Vector3 xYz = new Vector3(x , y + BLOCK_RENDER_SIZE, z );
+            Vector3 xyz = new Vector3(x, y, z);
+            Vector3 xYZ = new Vector3(x, y + BLOCK_RENDER_SIZE, z + BLOCK_RENDER_SIZE);
+            Vector3 XyZ = new Vector3(x + BLOCK_RENDER_SIZE, y, z + BLOCK_RENDER_SIZE);
+            Vector3 XYz = new Vector3(x + BLOCK_RENDER_SIZE, y + BLOCK_RENDER_SIZE, z);
+            Vector3 xyZ = new Vector3(x, y, z + BLOCK_RENDER_SIZE);
+            Vector3 Xyz = new Vector3(x + BLOCK_RENDER_SIZE, y, z);
+            Vector3 xYz = new Vector3(x, y + BLOCK_RENDER_SIZE, z);
 
             //123 341
             //012 230
@@ -209,10 +210,10 @@ namespace OpenTKTest
 
         public BlockType getBlockTypeAt(Vector3i locationWithinChunk)
         {
-                return blocks[locationWithinChunk.X, locationWithinChunk.Y, locationWithinChunk.Z];
+            return blocks[locationWithinChunk.X, locationWithinChunk.Y, locationWithinChunk.Z];
         }
 
-        public void setBlockTypeAt(Vector3i locationWithinChunk,BlockType type)
+        public void setBlockTypeAt(Vector3i locationWithinChunk, BlockType type)
         {
             blocks[locationWithinChunk.X, locationWithinChunk.Y, locationWithinChunk.Z] = type;
         }

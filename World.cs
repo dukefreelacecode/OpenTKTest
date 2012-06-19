@@ -14,8 +14,10 @@ namespace OpenTKTest
         Chunk c1 = new Chunk(), c2 = new Chunk();
         public World()
         {
-            c1.GenerateBuffers(true);
-            c2.GenerateBuffers(false);
+            c1.GenerateTerrain(1);
+            c2.GenerateTerrain(0);
+            c1.GenerateBuffers();
+            c2.GenerateBuffers();
 
             chunks[Vector3i.Zero] = c1;
             chunks[new Vector3i(1, 0, 0)] = c2;            
@@ -44,7 +46,7 @@ namespace OpenTKTest
             if (chunk == null) return;
             Vector3i blockPositionWithinChunk = location % Chunk.CHUNK_SIZE_1D;
             chunk.setBlockTypeAt(blockPositionWithinChunk, type);
-            chunk.GenerateBuffers(true);
+            chunk.GenerateBuffers();
         }
 
         public Block GetBlockAt(Vector3i location) // todo make alias to direct coords

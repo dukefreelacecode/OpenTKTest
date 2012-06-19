@@ -153,7 +153,6 @@ namespace OpenTKTest
             positions = new List<Vector3>(100);
             selectedBlock = null;
             Tracer v = new Tracer(0,0,0, 1, 1, 1);
-            //Tracer v = new Tracer(-0.5f, -0.5f, -0.5f, 1, 1, 1);
             v.plot(cameraPos, transformedReference, 16);
             while (v.next())
             {
