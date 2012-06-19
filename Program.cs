@@ -9,40 +9,72 @@ using OpenTK.Audio.OpenAL;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using OpenTK.Input;
+using System.Collections.Generic;
+using System.Threading;
 
 namespace OpenTKTest
 {
-    class Game : GameWindow
+    public class Game : GameWindow
     {
-
-
+        public static bool Round = true;
         /// <summary>Creates a 800x600 window with the specified title.</summary>
         public Game()
-            : base(1280, 1024, OpenTK.Graphics.GraphicsMode.Default, "Cole Erickson - Test", GameWindowFlags.Fullscreen)
+            : base(800,600, new OpenTK.Graphics.GraphicsMode(OpenTK.Graphics.ColorFormat.Empty, 16, 0, 16), "Cole Erickson - Test")
         {
             VSync = VSyncMode.On;
         }
-        ChunkManager cm;
+        public World World;
         /// <summary>Load resources here.</summary>
         /// <param name="e">Not used.</param>
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
 
-            //this.Location = new Point(200,200);
+            this.Location = new Point(300, 300);
+
+            //Height = DisplayDevice.GetDisplay(DisplayIndex.Default).Height;
+            //Width = DisplayDevice.GetDisplay(DisplayIndex.Default).Width;
+
 
             CursorVisible = false;
             OpenTK.Input.Mouse.SetPosition(this.Location.X + Width / 2, this.Location.Y + Height / 2);
-            GL.ClearColor(0.1f, 0.2f, 0.5f, 0.0f);
+            GL.ClearColor(1f, 0.8f, 0.2f, 0.0f);
             GL.FrontFace(FrontFaceDirection.Ccw);
             GL.Enable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
             GL.Enable(EnableCap.CullFace);
+            GL.Enable(EnableCap.Multisample);
+            GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+
+            Keyboard.KeyDown += delegate(object sender, KeyboardKeyEventArgs eventArgs)
+            {
+                if (eventArgs.Key == Key.J) Round = !Round;
+                if (eventArgs.Key != Key.E) return;
+                wireframe = !wireframe;
+            };
+            Mouse.ButtonDown += delegate(object sender, MouseButtonEventArgs eventArgs)
+                {
+                    if (eventArgs.Button != MouseButton.Left) return;
+                    if (selectedBlock == null || selectedBlock.Type == BlockType.Air) return;
+                    World.SetBlock(selectedBlock.Location, BlockType.Air);
+                };
 
             this.WindowBorder = OpenTK.WindowBorder.Hidden;
 
-            cm = new ChunkManager();
+            World = new World();
+            chunkGenerationThread = new Thread(new ThreadStart(delegate() { while (true) {
+                for (int x = -genRadius; x < genRadius; x++)
+                {
+                    for (int z = -genRadius; z < genRadius; z++)
+                    {
+                    }
+                }
+                Thread.Sleep(2000); } }));
+            //chunkGenerationThread.Start();
         }
+        private Thread chunkGenerationThread;
+
+        private const int genRadius = 5;
 
         /// <summary>
         /// Called when your window is resized. Set your viewport here. It is also
@@ -56,12 +88,13 @@ namespace OpenTKTest
 
             GL.Viewport(ClientRectangle.X, ClientRectangle.Y, ClientRectangle.Width, ClientRectangle.Height);
 
-            Matrix4 projection = Matrix4.CreatePerspectiveFieldOfView((float)Math.PI / 4, Width / (float)Height, 1.0f, 4000.0f);
+            Matrix4 projection = Matrix4.CreatePerspectiveFieldOfView((float)Math.PI / 4, Width / (float)Height, 0.1f, 4000.0f);
             GL.MatrixMode(MatrixMode.Projection);
             GL.LoadMatrix(ref projection);
         }
 
-        float moveSpeed = 5f;
+        bool wireframe = false;
+        float moveSpeed = 0.2f;
         /// <summary>
         /// Called when it is time to setup the next frame. Add you game logic here.
         /// </summary>
@@ -73,70 +106,87 @@ namespace OpenTKTest
             if (Keyboard[Key.Escape])
                 Exit();
 
-            Console.WriteLine(yaw);
-
-            Vector3 move = Vector3.Zero;
+            Vector3 moveVector = Vector3.Zero;
             if (Keyboard[Key.W])
             {
-                move.Z -= (float)Math.Cos(yaw);
-                move.X -= (float)Math.Sin(yaw);
+                moveVector.Z -= (float)Math.Cos(yaw);
+                moveVector.X -= (float)Math.Sin(yaw);
             }
             if (Keyboard[Key.S])
             {
-                move.Z += (float)Math.Cos(yaw);
-                move.X += (float)Math.Sin(yaw);
+                moveVector.Z += (float)Math.Cos(yaw);
+                moveVector.X += (float)Math.Sin(yaw);
             }
             if (Keyboard[Key.A])
             {
-                move.Z += (float)Math.Sin(yaw);
-                move.X -= (float)Math.Cos(yaw);
+                moveVector.Z += (float)Math.Sin(yaw);
+                moveVector.X -= (float)Math.Cos(yaw);
             }
             if (Keyboard[Key.D])
             {
-                move.X += (float)Math.Cos(yaw);
-                move.Z -= (float)Math.Sin(yaw);
+                moveVector.X += (float)Math.Cos(yaw);
+                moveVector.Z -= (float)Math.Sin(yaw);
             }
             if (Keyboard[Key.Space])
-                move.Y++;
+                moveVector.Y++;
             if (Keyboard[Key.LShift])
-                move.Y--;
-            if (move != Vector3.Zero)
-                move.Normalize();
-            playerPos += move * moveSpeed;
+                moveVector.Y--;
+            if (moveVector != Vector3.Zero)
+                moveVector.Normalize();
+            playerPosition += moveVector * moveSpeed;
 
             yaw -= (Mouse.X - (Width / 2)) * 0.001f;
             pitch -= (Mouse.Y - (Height / 2)) * 0.001f;
 
-            cameraPos = playerPos;
+            cameraPos = playerPosition;
 
-            if (yaw > MathHelper.Pi) yaw -= MathHelper.TwoPi; //MAGIC NUMBARSSSSS
+            if (yaw > MathHelper.Pi) yaw -= MathHelper.TwoPi;
             else if (yaw < -MathHelper.Pi) yaw += MathHelper.TwoPi;
 
             if (pitch > MathHelper.PiOver2 - 0.001f) pitch = MathHelper.PiOver2 - 0.001f;
             else if (pitch < -MathHelper.PiOver2 + 0.001f) pitch = -MathHelper.PiOver2 + 0.001f;
 
-            Matrix4 rotationMatrix = Matrix4.CreateRotationX(pitch) * Matrix4.CreateRotationY(yaw) ;
-            Vector3 transformedReference = Vector3.Transform(CAMERA_REFERENCE, rotationMatrix);
+            Matrix4 rotationMatrix = Matrix4.CreateRotationX(pitch) * Matrix4.CreateRotationY(yaw);
+            Vector3 transformedReference = Vector3.Transform(cameraReferenceDirection, rotationMatrix);
             Vector3 cameraLookAt = cameraPos + transformedReference;
 
+            positions = new List<Vector3>(100);
+            selectedBlock = null;
+            Tracer v = new Tracer(0,0,0, 1, 1, 1);
+            //Tracer v = new Tracer(-0.5f, -0.5f, -0.5f, 1, 1, 1);
+            v.plot(cameraPos, transformedReference, 16);
+            while (v.next())
+            {
+                Vector3i location = v.get();
+                positions.Add(location.ToVector3());
+
+                Block b = World.GetBlockAt(location);
+                
+                if (b == null || b.Type == BlockType.Air) continue;
+                else
+                {
+                    selectedBlock = b;
+                    break;
+                }
+            }
+
             view = Matrix4.LookAt(cameraPos, cameraLookAt, Vector3.UnitY);
-
-
-            //Console.WriteLine(cameraPos - transformedReference);
 
             OpenTK.Input.Mouse.SetPosition(this.Location.X + Width / 2, this.Location.Y + Height / 2);
         }
 
-        readonly Vector3 CAMERA_REFERENCE = new Vector3(0, 0, -1);
+        List<Vector3> positions = new List<Vector3>();
+
+        Block selectedBlock;
+        //Vector3 transformedReference = new Vector3(0, 0, -1);
+        readonly Vector3 cameraReferenceDirection = new Vector3(0, 0, -1);
 
         Vector3 target = Vector3.Zero;
         Matrix4 view;
-        float yaw;
+        float yaw = (float)Math.PI;
         float pitch;
-        Vector3 playerPos = Vector3.UnitZ * 50;
+        Vector3 playerPosition = Vector3.UnitZ * -5;
         Vector3 cameraPos = Vector3.Zero;
-
-        readonly Vector3 HEAD_OFFSET = new Vector3(0, 3, 0);
 
         /// <summary>
         /// Called when it is time to render the next frame. Add your rendering code here.
@@ -151,9 +201,32 @@ namespace OpenTKTest
             GL.LoadMatrix(ref view);
 
             GL.CullFace(CullFaceMode.Front);
-            GL.PolygonMode(MaterialFace.Back, PolygonMode.Point);
-            GL.Color4(0.6f, 0.8f, 0.2f, 0.0f);
-            cm.DrawChunks();
+            GL.PolygonMode(MaterialFace.Back, wireframe ? PolygonMode.Line : PolygonMode.Fill);
+            GL.Color4(0.8f, 0.2f, 0.0f, 1.0f);
+
+            World.DrawChunks(view);
+            GL.LoadMatrix(ref view);
+
+            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
+
+            GL.Color4(1f, 1f, 1f, 0.5f);
+            GL.VertexPointer(3, VertexPointerType.Float, 0, cube);
+
+            GL.Begin(BeginMode.LineStrip);
+            foreach (var location in positions)
+            {
+                GL.LoadMatrix(ref view);
+                GL.Vertex3(location);
+            }
+            GL.End();
+            if (selectedBlock != null)
+            {
+                GL.LoadMatrix(ref view);
+                GL.Translate(selectedBlock.Location.ToVector3() + new Vector3(Chunk.BLOCK_RENDER_SIZE / (float)2));
+                GL.Scale(new Vector3(1.1f));
+                GL.DrawElements(BeginMode.Triangles, 36, DrawElementsType.UnsignedByte, triangles);
+            }
 
             SwapBuffers();
         }
@@ -172,5 +245,36 @@ namespace OpenTKTest
                 game.Run(60.0);
             }
         }
+
+        #region Cube information
+
+        byte[] triangles =
+		{
+			0, 1, 2, // front
+			2, 3, 0,
+			4, 6, 5, // back
+			6, 4, 7,
+			7, 4, 0, // left
+			3, 7, 0,
+			2, 1, 5, //right
+			6, 2, 5,
+			1, 0, 5, // top
+			5, 0, 4,
+			3, 2, 6, // bottom
+			7, 3, 6,
+		};
+
+        float[] cube = {
+			-0.5f,  0.5f,  0.5f, // vertex[0]
+			 0.5f,  0.5f,  0.5f, // vertex[1]
+			 0.5f, -0.5f,  0.5f, // vertex[2]
+			-0.5f, -0.5f,  0.5f, // vertex[3]
+			-0.5f,  0.5f, -0.5f, // vertex[4]
+			 0.5f,  0.5f, -0.5f, // vertex[5]
+			 0.5f, -0.5f, -0.5f, // vertex[6]
+			-0.5f, -0.5f, -0.5f, // vertex[7]
+		};
+
+        #endregion
     }
 }

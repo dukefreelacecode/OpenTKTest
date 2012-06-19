@@ -24,7 +24,7 @@ namespace OpenTKTest
         /// <returns>True if the block is opaque and fills an entire voxel space</returns>
         public static bool IsSolid(this BlockType type)
         {
-            if (type == BlockType.AIR)
+            if (type == BlockType.Air)
             {
                 return false;
             }
@@ -35,9 +35,9 @@ namespace OpenTKTest
 
     public enum BlockType
     {
-        AIR     = 0,
-        STONE   = 1, 
-        DIRT    = 2, 
-        GRASS   = 3
+        Air     = 0,
+        Stone   = 1, 
+        Dirt    = 2, 
+        Grass   = 3
     };
 }

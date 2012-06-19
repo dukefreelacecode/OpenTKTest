@@ -11,7 +11,7 @@ namespace OpenTKTest
 {
     public class Chunk
     {
-        public static readonly float BLOCK_RENDER_SIZE = 0.5f;
+        public static readonly float BLOCK_RENDER_SIZE = 1f; // do not alter (unless you like fun)
         public static readonly int CHUNK_SIZE_1D = 16;
         public static readonly int CHUNK_SIZE_3D;
         BlockType[,,] blocks = new BlockType[CHUNK_SIZE_1D, CHUNK_SIZE_1D, CHUNK_SIZE_1D];
@@ -21,26 +21,33 @@ namespace OpenTKTest
             CHUNK_SIZE_3D = (int)Math.Pow(CHUNK_SIZE_1D, 3);
         }
 
-        public Chunk()
+        public void GenerateTerrain()
         {
         }
-        
+
+        int indicesHandle,
+            verticesHandle;
+
         short[] indices;
-
-        int indicesHandle = 0;
-        int verticesHandle = 0;
-
-        List<Vector3> vertexData = new List<Vector3>();
-        public void Generate()
+        List<Vector3> vertices;
+        public void GenerateBuffers(bool weird)
         {
+            Console.WriteLine("generating");
+            vertices = new List<Vector3>();
             GL.GenBuffers(1, out verticesHandle);
             GL.BindBuffer(BufferTarget.ArrayBuffer, verticesHandle);
 
-            for (int x = 0; x < CHUNK_SIZE_1D; x++)
-                for (int y = 0; y < CHUNK_SIZE_1D; y++)
-                    for (int z = 0; z < CHUNK_SIZE_1D; z++)
-                        blocks[x, y, z] = BlockType.STONE;
-
+            if (weird)
+            {
+                blocks[0, 0, 0] = BlockType.Stone;
+            }
+            else
+            {
+                for (int x = 0; x < CHUNK_SIZE_1D; x++)
+                    for (int y = 0; y < CHUNK_SIZE_1D; y++)
+                        for (int z = 0; z < CHUNK_SIZE_1D; z++)
+                            blocks[x, y, z] = BlockType.Stone;
+            }
             for (int x = 0; x < CHUNK_SIZE_1D; x++)
             {
                 for (int y = 0; y < CHUNK_SIZE_1D; y++)
@@ -48,7 +55,7 @@ namespace OpenTKTest
                     for (int z = 0; z < CHUNK_SIZE_1D; z++)
                     {
                         BlockType blockType = blocks[x, y, z];
-                        if (blockType == BlockType.AIR) continue;
+                        if (blockType == BlockType.Air) continue;
                         if (!blockType.IsSolid())
                         {
                             Console.WriteLine(String.Format("Non-solid block at ({0}, {1}, {2}). Skipping rendering.", x, y, z));
@@ -112,15 +119,15 @@ namespace OpenTKTest
             }
 
             GL.BufferData(BufferTarget.ArrayBuffer,
-                (IntPtr)((vertexData.Count) * Vector3.SizeInBytes),
-                vertexData.ToArray(), BufferUsageHint.StaticDraw);
+                (IntPtr)((vertices.Count) * Vector3.SizeInBytes),
+                vertices.ToArray(), BufferUsageHint.StaticDraw);
 
             GL.GenBuffers(1, out indicesHandle);
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, indicesHandle);
-            indices = new short[(vertexData.Count / 4) * 6];
+            indices = new short[(vertices.Count / 4) * 6];
             for (uint i = 0, j = 0; i < indices.Length; i += 6, j += 4)
             {
-                indices[i]     = (short)j;
+                indices[i] = (short)j;
                 indices[i + 1] = (short)(j + 1);
                 indices[i + 2] = (short)(j + 2);
 
@@ -134,59 +141,59 @@ namespace OpenTKTest
         private void AddVoxel(BlockType type, int x, int y, int z, bool posX, bool negX, bool posY, bool negY, bool posZ, bool negZ)
         {
             Vector3 XYZ = new Vector3(x + BLOCK_RENDER_SIZE, y + BLOCK_RENDER_SIZE, z + BLOCK_RENDER_SIZE);
-            Vector3 xyz = new Vector3(x - BLOCK_RENDER_SIZE, y - BLOCK_RENDER_SIZE, z - BLOCK_RENDER_SIZE);
-            Vector3 xYZ = new Vector3(x - BLOCK_RENDER_SIZE, y + BLOCK_RENDER_SIZE, z + BLOCK_RENDER_SIZE);
-            Vector3 XyZ = new Vector3(x + BLOCK_RENDER_SIZE, y - BLOCK_RENDER_SIZE, z + BLOCK_RENDER_SIZE);
-            Vector3 XYz = new Vector3(x + BLOCK_RENDER_SIZE, y + BLOCK_RENDER_SIZE, z - BLOCK_RENDER_SIZE);
-            Vector3 xyZ = new Vector3(x - BLOCK_RENDER_SIZE, y - BLOCK_RENDER_SIZE, z + BLOCK_RENDER_SIZE);
-            Vector3 Xyz = new Vector3(x + BLOCK_RENDER_SIZE, y - BLOCK_RENDER_SIZE, z - BLOCK_RENDER_SIZE);
-            Vector3 xYz = new Vector3(x - BLOCK_RENDER_SIZE, y + BLOCK_RENDER_SIZE, z - BLOCK_RENDER_SIZE);
-            
+            Vector3 xyz = new Vector3(x , y , z );
+            Vector3 xYZ = new Vector3(x , y + BLOCK_RENDER_SIZE, z + BLOCK_RENDER_SIZE);
+            Vector3 XyZ = new Vector3(x + BLOCK_RENDER_SIZE, y , z + BLOCK_RENDER_SIZE);
+            Vector3 XYz = new Vector3(x + BLOCK_RENDER_SIZE, y + BLOCK_RENDER_SIZE, z );
+            Vector3 xyZ = new Vector3(x , y , z + BLOCK_RENDER_SIZE);
+            Vector3 Xyz = new Vector3(x + BLOCK_RENDER_SIZE, y , z );
+            Vector3 xYz = new Vector3(x , y + BLOCK_RENDER_SIZE, z );
+
             //123 341
             //012 230
             if (posX)
             {
-                vertexData.Add(XYZ);
-                vertexData.Add(XYz);
-                vertexData.Add(Xyz);
-                vertexData.Add(XyZ);
+                vertices.Add(XYZ);
+                vertices.Add(XYz);
+                vertices.Add(Xyz);
+                vertices.Add(XyZ);
             }
             if (negX)
             {
-                vertexData.Add(xyz);
-                vertexData.Add(xYz);
-                vertexData.Add(xYZ);
-                vertexData.Add(xyZ);
+                vertices.Add(xyz);
+                vertices.Add(xYz);
+                vertices.Add(xYZ);
+                vertices.Add(xyZ);
             }
 
             if (posY)
             {
-                vertexData.Add(xYz);
-                vertexData.Add(XYz);
-                vertexData.Add(XYZ);
-                vertexData.Add(xYZ);
+                vertices.Add(xYz);
+                vertices.Add(XYz);
+                vertices.Add(XYZ);
+                vertices.Add(xYZ);
             }
             if (negY)
             {
-                vertexData.Add(XyZ);
-                vertexData.Add(Xyz);
-                vertexData.Add(xyz);
-                vertexData.Add(xyZ);
+                vertices.Add(XyZ);
+                vertices.Add(Xyz);
+                vertices.Add(xyz);
+                vertices.Add(xyZ);
             }
 
             if (posZ)
             {
-                vertexData.Add(XyZ);
-                vertexData.Add(xyZ);
-                vertexData.Add(xYZ);
-                vertexData.Add(XYZ);
+                vertices.Add(XyZ);
+                vertices.Add(xyZ);
+                vertices.Add(xYZ);
+                vertices.Add(XYZ);
             }
             if (negZ)
             {
-                vertexData.Add(xYz);
-                vertexData.Add(xyz);
-                vertexData.Add(Xyz);
-                vertexData.Add(XYz);
+                vertices.Add(xYz);
+                vertices.Add(xyz);
+                vertices.Add(Xyz);
+                vertices.Add(XYz);
             }
         }
 
@@ -196,8 +203,18 @@ namespace OpenTKTest
             GL.BindBuffer(BufferTarget.ArrayBuffer, verticesHandle);
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, indicesHandle);
 
-            GL.VertexPointer(3, VertexPointerType.Float, BlittableValueType.StrideOf(vertexData.ToArray()), IntPtr.Zero);
+            GL.VertexPointer(3, VertexPointerType.Float, BlittableValueType.StrideOf(vertices.ToArray()), IntPtr.Zero);
             GL.DrawElements(BeginMode.Triangles, indices.Length, DrawElementsType.UnsignedShort, IntPtr.Zero);
+        }
+
+        public BlockType getBlockTypeAt(Vector3i locationWithinChunk)
+        {
+                return blocks[locationWithinChunk.X, locationWithinChunk.Y, locationWithinChunk.Z];
+        }
+
+        public void setBlockTypeAt(Vector3i locationWithinChunk,BlockType type)
+        {
+            blocks[locationWithinChunk.X, locationWithinChunk.Y, locationWithinChunk.Z] = type;
         }
     }
 }
